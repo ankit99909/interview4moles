@@ -8,9 +8,7 @@ import GolfScorecard from './Src/Screen/GolfScorecard';
 import { requestUserPermission } from './Src/Componets/requestUserPermission';
 
 // LogBox to suppress any warnings
-LogBox.ignoreLogs([
-  'Warning: ...', // Replace with the exact warning message you want to suppress
-]);
+LogBox.ignoreAllLogs();
 
 const Stack = createNativeStackNavigator();
 
@@ -82,8 +80,9 @@ export default function App() {
   return (
     <NavigationContainer linking={linking}>
       <Stack.Navigator initialRouteName="GolfScorecardScreen" screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="GolfScorecardScreen" component={GolfScorecardScreen} />
-        <Stack.Screen name="GolfScorecard" component={GolfScorecard} />
+      <Stack.Screen name="GolfScorecardScreen" component={GolfScorecardScreen} />
+      <Stack.Screen name="GolfScorecard" component={GolfScorecard} />
+    
       </Stack.Navigator>
     </NavigationContainer>
   );

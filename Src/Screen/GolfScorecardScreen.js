@@ -5,17 +5,24 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import CircleWithArrows from '../Componets/CircleWithArrows';
+import AntDesign from 'react-native-vector-icons/AntDesign';
 
 const { width, height } = Dimensions.get('window');
+
+
+// Helper functions for responsive scaling
+const responsiveWidth = (size) => (width / 375) * size;
+const responsiveHeight = (size) => (height / 667) * size;
+const responsiveFont = (size) => Math.round((size * width) / 375);
 
 const holesData = Array.from({ length: 18 }, (_, i) => {
   const holeNumber = i + 1;
   const dataIndex = holeNumber <= 9 ? i : i + 1;
   return {
     hole: holeNumber,
-    yards: 200 + (i * 10), // Adjust this for real yard data
-    par: 3 + (i % 5), // Adjust this for real par data
-    index: 12 - (i % 12), // Adjust this for real index data
+    yards: 200 + (i * 10),
+    par: 3 + (i % 5),
+    index: 12 - (i % 12),
   };
 });
 
@@ -24,26 +31,52 @@ const GolfScorecardScreen = ({ navigation }) => {
   const [putts, setPutts] = useState({});
   const [currentHoleIndex, setCurrentHoleIndex] = useState(0);
   const [hide, setHide] = useState(true);
+  const [penalty, setPenalty] = useState(0);
+  const [isConnected, setIsConnected] = useState(true);
 
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsConnected(state.isConnected);
+    });
+
+    const loadData = async () => {
+      try {
+        const storedScores = await AsyncStorage.getItem('golfScores');
+        const storedPutts = await AsyncStorage.getItem('golfPutts');
+        const storedPenalty = await AsyncStorage.getItem('golfPenalty');
+
+        if (storedScores) setScores(JSON.parse(storedScores));
+        if (storedPutts) setPutts(JSON.parse(storedPutts));
+        if (storedPenalty) setPenalty(parseInt(storedPenalty, 10) || 0);
+
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+
+    loadData();
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const saveData = async () => {
       try {
-        await AsyncStorage.setItem('@scores', JSON.stringify(scores));
-        await AsyncStorage.setItem('@putts', JSON.stringify(putts));
+        await AsyncStorage.setItem('golfScores', JSON.stringify(scores));
+        await AsyncStorage.setItem('golfPutts', JSON.stringify(putts));
+        await AsyncStorage.setItem('golfPenalty', penalty.toString());
 
-        // Simulate server sync
-        const { isConnected } = await NetInfo.fetch();
         if (isConnected) {
-          console.log('Simulating server sync...');
-          // Add actual API call here
+          // Simulate sending data to server (replace with your actual server logic)
+          console.log('Sending data to server:', { scores, putts, penalty });
         }
-      } catch (e) {
-        console.error('Failed to save data', e);
+      } catch (error) {
+        console.error('Error saving data:', error);
       }
     };
+
     saveData();
-  }, [scores, putts]);
+  }, [scores, putts, penalty, isConnected]);
 
   const handleScoreChange = (hole, delta) => {
     const newValue = (scores[hole] || holesData[hole - 1].par) + delta;
@@ -65,6 +98,10 @@ const GolfScorecardScreen = ({ navigation }) => {
     if (currentHoleIndex > 0) {
       setCurrentHoleIndex(currentHoleIndex - 1);
     }
+  };
+
+  const penaltyButton = () => {
+    setPenalty(penalty + 1);
   };
 
   const { hole, yards, par, index } = holesData[currentHoleIndex];
@@ -97,17 +134,29 @@ const GolfScorecardScreen = ({ navigation }) => {
         <TouchableOpacity style={styles.closeButton}><Text style={{ color: "#000" }}>✖️</Text></TouchableOpacity>
         <Text style={styles.headerText}>Qutab Golf course</Text>
         <TouchableOpacity style={styles.menuButton} onPress={() => navigation.navigate('GolfScorecard')}>
-          <FontAwesome5 name="list-alt" color="#000" size={20} />
+          <Image
+            source={require('../Image/header.png')}
+            style={{ 
+              width: responsiveWidth(46), 
+              height: responsiveWidth(46), 
+              left: responsiveWidth(24) 
+            }}
+          />
         </TouchableOpacity>
         <TouchableOpacity style={styles.menuButton}><FontAwesome5 name="user-tag" color="#000" size={18} /></TouchableOpacity>
       </View>
 
       {/* Hole Details */}
       <View style={styles.holeDetails}>
-        <TouchableOpacity onPress={prevHole} style={styles.arrowButton}>
-          <Icon name="keyboard-arrow-left" size={40} color="#fff" />
+        <TouchableOpacity onPress={prevHole} style={[styles.arrowButton, {left: -responsiveWidth(8)}]}>
+          <Icon name="keyboard-arrow-left" size={44} color="#fff" />
         </TouchableOpacity>
+        <View style={{backgroundColor:"#fff", borderRadius: width * 0.125, // Responsive border radius
+    width: width * 0.160, 
+    height: width * 0.160,justifyContent:"center",alignItems:"center" }}>
         <Text style={styles.holeNumber}>{hole}</Text>
+        </View>
+       
         <View style={styles.detailContainer}>
           <Text style={styles.detailText}>YARDS</Text>
           <Text style={styles.detailValue}>{yards}</Text>
@@ -120,23 +169,28 @@ const GolfScorecardScreen = ({ navigation }) => {
           <Text style={styles.detailText}>INDEX</Text>
           <Text style={styles.detailValue}>{index}</Text>
         </View>
-        <TouchableOpacity onPress={nextHole} style={styles.arrowButton}>
-          <Icon name="keyboard-arrow-right" size={40} color="#fff" />
+        <TouchableOpacity onPress={nextHole} style={[styles.arrowButton,{}]}>
+          <Icon name="keyboard-arrow-right" size={44} color="#fff" />
         </TouchableOpacity>
       </View>
-
       {/* Player Info */}
       <View style={{ padding: 20 }}>
-        <View style={{ backgroundColor: '#FFF', padding: 15, borderRadius: 10, marginBottom: 20 }}>
+        <View style={{ backgroundColor: '#FFF', padding: 15, borderRadius: 10, marginBottom: 10 }}>
           <View style={styles.playerCard}>
-            <Image source={{ uri: 'https://s.cafebazaar.ir/images/upload/screenshot/com.laknaidriapps.girlscartoon-75f60f39-19e6-4ebf-ab92-2e30a3e8797b.jpeg?x-img=v1/resize,h_600,lossless_false/optimize' }} style={styles.playerImage} />
+            <Image
+              source={require('../Image/profile.png')}
+              style={styles.playerImage}
+            />
             <View style={styles.playerInfo}>
               <Text style={styles.playerName}>Ankit Bansal</Text>
               <Text style={styles.playerDetails}>HCAP 4 | Total: 0 (0)</Text>
             </View>
             <View style={styles.scoreCircle}>
-              <Text style={styles.scoreText}>{currentScore} {currentPutts}</Text>
-            </View>
+  <Text style={styles.scoreText}>
+    <Text style={styles.largeScore}>{currentScore}</Text>
+    <Text style={styles.smallPutts}> {currentPutts}</Text>
+  </Text>
+</View>
             <TouchableOpacity onPress={() => setHide(!hide)} style={styles.toggleButton}>
               <Icon name={hide ? "keyboard-arrow-up" : "keyboard-arrow-down"} size={30} color="#2C3E50" />
             </TouchableOpacity>
@@ -148,18 +202,18 @@ const GolfScorecardScreen = ({ navigation }) => {
                 <CircleWithArrows label="GIR" />
               </View>
               <View style={styles.statsContainer}>
-                <View style={styles.statItem}>
-                  <Text>✔️</Text>
+                <TouchableOpacity style={styles.statItem}>
+                  <AntDesign name="check" color="#969696" size={40} />
                   <Text style={styles.statTitle}>SANDIE</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text>✔️</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.statItem}>
+                  <AntDesign name="check" color="#969696" size={40} />
                   <Text style={styles.statTitle}>UP/DOWN</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text>0</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.statItem} onPress={() => penaltyButton()}>
+                  <Text style={styles.textstyle}>{penalty}</Text>
                   <Text style={styles.statTitle}>PENALTY</Text>
-                </View>
+                </TouchableOpacity>
               </View>
 
               {/* Score and Putts */}
@@ -167,17 +221,17 @@ const GolfScorecardScreen = ({ navigation }) => {
                 <View style={styles.counterItem}>
                   <Text style={styles.counterTitle}>Score</Text>
                   <View style={styles.counterControls}>
-                    <TouchableOpacity onPress={() => handleScoreChange(hole, -1)} style={styles.button}><Text style={{ color: "#fff" }}>-</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleScoreChange(hole, -1)} style={styles.button}><Text style={{ color: "#fff",fontWeight:"bold",fontSize:16 }}>-</Text></TouchableOpacity>
                     <Text style={styles.counterText}>{currentScore}</Text>
-                    <TouchableOpacity onPress={() => handleScoreChange(hole, 1)} style={styles.button}><Text style={{ color: "#fff" }}>+</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleScoreChange(hole, 1)} style={styles.button}><Text style={{ color: "#fff",fontWeight:"bold",fontSize:16 }}>+</Text></TouchableOpacity>
                   </View>
                 </View>
                 <View style={styles.counterItem}>
                   <Text style={styles.counterTitle}>Putts</Text>
                   <View style={styles.counterControls}>
-                    <TouchableOpacity onPress={() => handlePuttsChange(hole, -1)} style={styles.button}><Text style={{ color: "#fff" }}>-</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={() => handlePuttsChange(hole, -1)} style={styles.button}><Text style={{ color: "#fff",fontWeight:"bold",fontSize:16 }}>-</Text></TouchableOpacity>
                     <Text style={styles.counterText}>{currentPutts}</Text>
-                    <TouchableOpacity onPress={() => handlePuttsChange(hole, 1)} style={styles.button}><Text style={{ color: "#fff" }}>+</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={() => handlePuttsChange(hole, 1)} style={styles.button}><Text style={{color: "#fff",fontWeight:"bold",fontSize:16 }}>+</Text></TouchableOpacity>
                   </View>
                 </View>
               </View>
@@ -190,53 +244,110 @@ const GolfScorecardScreen = ({ navigation }) => {
     </View>
   );
 };
-
-
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#EAEFF5',
-    flex: 1,
-  },
-  header: {
+    container: {
+      backgroundColor: '#EAEFF5',
+      flex: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      height: responsiveHeight(48),
+      padding: responsiveWidth(10),
+      borderRadius: responsiveWidth(10),
+    },
+    headerText: {
+      fontSize: responsiveFont(18),
+      fontWeight: 'bold',
+      color: '#000',
+    },
+    closeButton: {
+      padding: responsiveWidth(10),
+    },
+    menuButton: {
+      padding: responsiveWidth(10),
+    },
+    holeDetails: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: '#1C2833',
+      padding: responsiveWidth(20),
+      height: responsiveHeight(62),
+    },
+    holeNumber: {
+      fontSize: responsiveFont(30),
+      fontWeight: 'bold',
+      color: '#000000',
+      backgroundColor: '#fff',
+      borderRadius: responsiveWidth(30),
+      width: responsiveWidth(60),
+      height: responsiveWidth(60),
+      textAlign: 'center',
+      textAlignVertical: 'center',
+    },
+    detailContainer: {
+      alignItems: 'center',
+      marginHorizontal: responsiveWidth(10),
+    },
+    detailText: {
+      fontSize: responsiveFont(12),
+      color: '#ffffff',
+    },
+    detailValue: {
+      fontSize: responsiveFont(18),
+      fontWeight: 'bold',
+      color: '#FFF',
+    },
+    playerCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: responsiveWidth(15),
+      borderRadius: responsiveWidth(10),
+      marginBottom: responsiveHeight(10),
+      justifyContent: 'space-between',
+    },
+    playerImage: {
+      width: responsiveWidth(46),
+      height: responsiveWidth(46),
+      borderRadius: responsiveWidth(23),
+    },
+    playerInfo: {
+      marginLeft: responsiveWidth(15),
+      flex: 1,
+    },
+    playerName: {
+      fontSize: responsiveFont(16),
+      fontWeight: 'bold',
+      color: '#000000',
+    },
+    playerDetails: {
+      fontSize: responsiveFont(12),
+      color: '#095290',
+    },
+    scoreCircle: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: responsiveWidth(50),
+      height: responsiveWidth(50),
+      borderRadius: responsiveWidth(25),
+      borderWidth: 2,
+      backgroundColor: '#f0f0f0',
+    },
+  scoreText: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: width * 0.04, // Responsive padding
-    borderRadius: 10,
+    alignItems: 'flex-end', // This aligns items at the bottom
   },
-  headerText: {
-    fontSize: width * 0.045, // Responsive font size
+  largeScore: {
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#253C51'
   },
-  closeButton: {
-    padding: width * 0.0125, // Responsive padding
-    color: '#000',
-  },
-  menuButton: {
-    padding: width * 0.0125, // Responsive padding
-    color: '#0F1820',
-  },
-  holeDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#1C2833',
-    padding: width * 0.04, // Responsive padding
-    width: '100%',
-    marginBottom: height * 0.0125, // Responsive margin
-  },
-  holeNumber: {
-    fontSize: width * 0.075, // Responsive font size
-    fontWeight: 'bold',
-    color: '#000000',
-    marginHorizontal: width * 0.01, // Responsive margin
-    backgroundColor: '#fff',
-    borderRadius: width * 0.125, // Responsive border radius
-    width: width * 0.125, // Responsive width
-    height: width * 0.125, // Responsive height
-    textAlign: 'center',
-    textAlignVertical: 'center',
+  smallPutts: {
+    fontSize: 16,
+    color: '#253C51',
+    // Fine-tune alignment if needed
   },
   detailContainer: {
     alignItems: 'center',
@@ -244,22 +355,29 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: width * 0.035, // Responsive font size
-    color: '#AAB7B8',
+    color: '#ffffff',
   },
   detailValue: {
-    fontSize: width * 0.045, // Responsive font size
+    fontSize: width * 0.050, // Responsive font size
     fontWeight: 'bold',
     color: '#FFF',
   },
+  textstyle: {
+    fontSize: width * 0.076, // Responsive font size
+    fontWeight: 'bold',
+    color: "#969696"
+  },
   arrowButton: {
-    padding: width * 0.0125, // Responsive padding
+    justifyContent:"center",
+    alignItems:"center",
+    left:10
   },
   playerCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: width * 0.04, // Responsive padding
     borderRadius: 10,
-    marginBottom: height * 0.025, // Responsive margin
+    marginBottom: height * 0.01, // Responsive margin
     justifyContent: 'space-between',
   },
   playerImage: {
@@ -276,12 +394,7 @@ const styles = StyleSheet.create({
     fontSize: width * 0.035, // Responsive font size
     color: '#095290',
   },
-  scoreCircle: {
-    backgroundColor: '#fff',
-    borderRadius: width * 0.125, // Responsive border radius
-    padding: width * 0.03, // Responsive padding
-    borderWidth: 2,
-  },
+ 
   scoreText: {
     fontSize: width * 0.045, // Responsive font size
     fontWeight: 'bold',
@@ -290,7 +403,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: height * 0.03, // Responsive margin
-    borderBottomWidth: 1,
+    borderBottomWidth: 1.5,
+    borderBlockColor: "#D3D3D3",
     color: '#D3D3D3',
   },
   statItem: {
@@ -298,9 +412,9 @@ const styles = StyleSheet.create({
     marginBottom: height * 0.0125, // Responsive margin
   },
   statTitle: {
-    fontSize: width * 0.035, // Responsive font size
+    fontSize: width * 0.044, // Responsive font size
     fontWeight: 'bold',
-    color: '#566573',
+    color: '#000000',
   },
   counterContainer: {
     flexDirection: 'row',
@@ -313,6 +427,7 @@ const styles = StyleSheet.create({
   counterTitle: {
     fontSize: width * 0.04, // Responsive font size
     fontWeight: 'bold',
+    color: "#000000"
   },
   counterControls: {
     flexDirection: 'row',
@@ -377,7 +492,7 @@ const styles = StyleSheet.create({
   },
   appContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-evenly',
+    justifyContent: "space-around",
     alignItems: 'center',
     backgroundColor: '#fff',
   },
